@@ -1,0 +1,46 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Large ML models and data
+twitter-roberta-base-emotion/
+data/
+models/
+*.pkl
+*.joblib
+
+# Audio files
+*.wav
+*.mp3
+*.m4a
+*.aac
+uploads/
+
+# Cache and temporary files
+.pytest_cache/
+.scannerwork/
+.cache/
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Other
+*.pyc
+.ipynb_checkpoints/
