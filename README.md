@@ -1,58 +1,110 @@
-# AudioAnalysisApp — Speech & Sentiment Analyzer
+# Audio Analysis App
 
-## 📌 Overview
-AudioAnalysisApp is a desktop application that records audio, transcribes it, and performs basic sentiment analysis. It’s designed for quick audio diagnostics, educational demos, and prototypes that need speech-to-text and tone detection.
+A desktop app (PyQt5) that takes a speech recording, from a file or the microphone, and reports **who is speaking, what they said, how they feel and what they are talking about**.
 
-## 🚀 Features
-- Record audio from the system microphone
-- Save recordings as WAV files
-- Transcribe audio using a speech‑recognition library
-- Perform sentiment analysis on transcribed text
-- Simple GUI for recording and viewing results
+For each recording it shows:
 
-## 🛠 Tech Stack
-- **Language:** Python 3.9
-- **GUI:** PyQt5 (via `ui/` folder)
-- **Speech Recognition:** `speech_recognition` library
-- **Sentiment Analysis:** `textblob` or `vaderSentiment` (choose one)
-- **Other dependencies:** `pyaudio`, `numpy`
+| Output | How it is produced |
+|---|---|
+| Speaker | Random Forest classifier on audio features (MFCC, chroma, spectral contrast, RMS, zero-crossing rate) |
+| Transcription and word count | Google Speech Recognition through the `SpeechRecognition` library |
+| Emotion (% per label) | Hugging Face text-classification model loaded from `models/emotion_model` |
+| Topic (% per topic) | Zero-shot classification with `facebook/bart-large-mnli` over 9 topics (sports, technology, education, entertainment, health, finance, travel, politics, science) |
+| Charts | Topic pie chart and audio waveform, shown in the Visualization tab |
 
-## 📱 Screenshots / Demo
+Non-English speech is detected (`langdetect`) and translated to English (`deep-translator`) before emotion and topic analysis, so the app also works for other languages.
 
+## Screenshots
 
-## ⚙️ Installation & Setup
-1. Clone the repo:
+_Add a screenshot or short GIF of the three tabs (General, Analysis, Visualization) here._
 
+## How it works
 
-git clone https://github.com/ifrahMoh24/AudioAnalysisApp-Clean.git
+```
+audio file / microphone (10 s)
+        │
+   preprocess (normalize, WAV)
+        ├──► audio features ─► scaler ─► feature selector ─► Random Forest ─► speaker
+        └──► speech-to-text ─► (detect language, translate to English)
+                                   ├──► emotion model ─► emotion scores
+                                   └──► zero-shot model ─► topic scores
+                                                │
+                              results + topic pie chart + waveform
+```
 
-cd AudioAnalysisApp-Clean
+## Project structure
 
-2. Create a virtual environment and install dependencies:
+```
+main.py                  Current GUI app: speaker, transcript, emotion, topic, charts
+app.py                   Earlier version of the app (speaker + sentiment); kept for reference
+ui/main_window.py        PyQt window code
+scripts/
+  augment_audio.py       Noise, pitch shift and speed changes for training data
+  extract_features.py    Feature extraction for the training data
+  preprocess_audio.py    Loads WAV data and saves feature histograms
+  train_models.py        Trains the speaker classifier (scaler + selector + Random Forest)
+  train_emotion_model.py Emotion helper (loads the model from models/emotion_model)
+  train_topic_model.py   Topic helper
+  test_microphone.py     Checks that the microphone can be opened
+speech_recognizer.py,    Small placeholder classes used by the unit tests
+sentiment_analyzer.py,   (not used by the GUI)
+word_counter.py
+test_*.py                pytest tests for the placeholder classes
+```
 
+## Setup
 
+Requires Python 3.9+ and a working microphone for live recording.
+
+```bash
+git clone https://github.com/ifrahMoh24/Audio_Analysis_App.git
+cd Audio_Analysis_App
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-3. Run the application:
+`PyAudio` needs the PortAudio library first:
 
+- macOS: `brew install portaudio`
+- Ubuntu/Debian: `sudo apt install portaudio19-dev`
+- Windows: `pip install pyaudio` normally works with a prebuilt wheel
+
+`pydub` also needs `ffmpeg` for some formats (`brew install ffmpeg` / `sudo apt install ffmpeg`).
+
+### Models (not included in the repo)
+
+The `models/` and `data/` folders are git-ignored, so you must create them yourself:
+
+1. **Speaker model** — put labelled recordings under `data/raw/<speaker>/`, set the file paths at the top of `scripts/train_models.py`, then run `python scripts/train_models.py`. It saves the scaler, selector and classifier to `models/`.
+2. **Emotion model** — save a Hugging Face text-classification model to `models/emotion_model/`.
+3. The topic model (`facebook/bart-large-mnli`) is downloaded automatically on first run.
+
+If a model is missing, the app logs an error and shows "Unknown" for that part instead of crashing.
+
+## Run
+
+```bash
 python main.py
+```
 
-4. Ensure you have the necessary system libraries for audio (e.g., `portaudio` on macOS/Linux).
+Use the upload button to analyse a file, or start a live recording (10 seconds).
 
-## 📂 Folder Structure
-- `scripts/` — helper scripts for audio preprocessing
-- `ui/` — PyQt UI files
-- `app.py` — main application module
-- `main.py` — entry point
-- `speech_recognizer.py` — speech recognition utilities
-- `sentiment_analyzer.py` — sentiment analysis utilities
-- `requirements.txt` — Python dependencies
+## Tests
 
-## 📌 Status
-Under development — prototype works; improvements planned for accuracy and UI polish.
+```bash
+pip install pytest
+pytest
+```
 
-## 👤 Author
-Ifrah Mohamed  
-[LinkedIn](https://linkedin.com/in/ifrah-mohamed-4233b7225) | [GitHub](https://github.com/ifrahMoh24)
+The current tests cover only the small placeholder classes (`speech_recognizer.py`, `sentiment_analyzer.py`, `word_counter.py`). They do not test the real analysis pipeline in `main.py`.
+
+## Limitations
+
+- The speaker classifier was trained on very little data (a few speakers, one recording each, plus augmented copies), so its accuracy figures are not reliable. It is a proof of concept, not a verified speaker-identification system.
+- Transcription uses the Google Web Speech API, so it needs an internet connection.
+- Zero-shot topic scores are spread over a fixed list of 9 topics and are only a rough guide.
+
+## Author
+
+Ifrah Mohamed — [LinkedIn](https://linkedin.com/in/ifrah-mohamed-4233b7225) | [GitHub](https://github.com/ifrahMoh24)
